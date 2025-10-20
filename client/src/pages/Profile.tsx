@@ -24,11 +24,40 @@ export default function Profile() {
     }
   };
 
-  const logout = () => { localStorage.removeItem('token'); window.location.href = '/login'; };
+  const logout = () => { 
+    localStorage.removeItem('token'); 
+    window.location.href = '/login'; 
+  };
+
+  // เพิ่มฟังก์ชันลบบัญชีตัวเอง
+  const deleteMyAccount = async () => {
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบบัญชีนี้?')) return;
+    try {
+      await api.delete('/auth/me');
+      localStorage.removeItem('token');
+      alert('บัญชีของคุณถูกลบเรียบร้อยแล้ว');
+      window.location.href = '/register';
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Delete failed');
+    }
+  };
+
+  //  เพิ่มฟังก์ชันให้ ADMIN ลบผู้ใช้รายอื่น
+  const deleteUser = async (id: number) => {
+    if (!confirm(`ต้องการลบผู้ใช้ ID: ${id} ใช่ไหม?`)) return;
+    try {
+      await api.delete(`/auth/users/${id}`);
+      alert('ลบผู้ใช้สำเร็จ');
+      loadUsers(); // reload รายชื่อผู้ใช้ใหม่
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Delete failed');
+    }
+  };
 
   return (
     <div className="card">
       <h2>Profile</h2>
+
       {profile ? (
         <div className="grid">
           <div><b>Name:</b> {profile.FullName}</div>
@@ -41,6 +70,11 @@ export default function Profile() {
       <div className="row">
         <button onClick={logout}>Logout</button>
         <button onClick={loadUsers} title="ADMIN only">Load all users (ADMIN)</button>
+
+        {/* ปุ่มลบบัญชีตัวเอง */}
+        <button onClick={deleteMyAccount} style={{ backgroundColor: 'darkred', color: 'white' }}>
+          Delete my account
+        </button>
       </div>
 
       {msg && <p className="msg">{msg}</p>}
@@ -49,12 +83,35 @@ export default function Profile() {
         <>
           <h3>Users</h3>
           <table className="table">
-            <thead><tr><th>Id</th><th>Email</th><th>Name</th><th>Role</th><th>Created</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Id</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Action</th> 
+              </tr>
+            </thead>
             <tbody>
               {users.map((u:any) => (
                 <tr key={u.Id}>
-                  <td>{u.Id}</td><td>{u.Email}</td><td>{u.FullName}</td>
-                  <td>{u.Role}</td><td>{new Date(u.CreatedAt).toLocaleString()}</td>
+                  <td>{u.Id}</td>
+                  <td>{u.Email}</td>
+                  <td>{u.FullName}</td>
+                  <td>{u.Role}</td>
+                  <td>{new Date(u.CreatedAt).toLocaleString()}</td>
+                  <td>
+                    {/* ปุ่มลบสำหรับ ADMIN */}
+                    {profile?.Role === 'ADMIN' && (
+                      <button 
+                        onClick={() => deleteUser(u.Id)} 
+                        style={{ backgroundColor: 'crimson', color: 'white' }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

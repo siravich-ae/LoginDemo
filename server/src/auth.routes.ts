@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { getPool, sql } from './db';
 import { authGuard } from './middleware';
 import { requireRole } from './middleware';
+import { adminOnly } from './middleware';
 
 const router = Router();
 
@@ -99,4 +100,39 @@ router.get('/users', authGuard, requireRole('ADMIN'), async (_req, res) => {
   const rs = await pool.request()
     .query('SELECT Id, Email, FullName, Role, CreatedAt FROM dbo.[User] ORDER BY Id DESC');
   res.json({ users: rs.recordset });
+});
+
+//ลบบัญชีตัวเอง
+router.delete('/me', authGuard, async (req, res) => {
+  try {
+    const user = (req as any).user; // { sub, email, role }
+    const pool = await getPool();
+
+    await pool.request()
+      .input('id', sql.Int, user.sub)
+      .query('DELETE FROM dbo.[User] WHERE Id=@id');
+
+    return res.status(204).send(); 
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Delete failed' });
+  }
+});
+
+//Admin ลบ User
+router.delete('/users/:id', authGuard, adminOnly, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'Invalid id' });
+
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.Int, id)
+      .query('DELETE FROM dbo.[User] WHERE Id=@id');
+
+    return res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Delete failed' });
+  }
 });
